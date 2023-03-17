@@ -4,6 +4,7 @@ import random
 import math
 
 from dataset import DataGeneration
+# from model import Encoder
 
 from matplotlib.pyplot import rcParams
 np.set_printoptions(precision=3, suppress=True)
@@ -14,12 +15,10 @@ plt.rcParams['font.size'] = 22
 
 def load(map, start, goal):
     map[map > 0] = 1
-    map[start[0], start[1]] = 0.5
-    map[goal[0], goal[1]] = 0.5
     plt.set_cmap('binary')
     plt.imshow(map)
     plt.tight_layout()
-    plt.show()
+    # plt.show()
 
 
 class treeNode():
@@ -41,6 +40,7 @@ class RRTAlgoritm():
         self.nearestDist = 10000
         self.numWaypoints = 0
         self.Waypoints = []
+        self.stepSize  = stepSize
 
     #add the node to the nearest node and goal when reached
     def addChild(self, locationX, locationY):
@@ -71,12 +71,12 @@ class RRTAlgoritm():
         """
         offset = self.rho * self.unitVector(locationStart, locationEnd)
         point = np.array([locationStart.locationX + offset[0], locationStart.locationY + offset[1]])
-        if point[0] >= grid.shape[1]:
-            point[0] = grid.shape[1]
+        if point[0] >= self.grid.shape[1]:
+            point[0] = self.grid.shape[1]
         elif point[0] < 0:
             point[0] = 0
-        if point[1] >= grid.shape[0]:
-            point[1] = grid.shape[1]
+        if point[1] >= self.grid.shape[0]:
+            point[1] = self.grid.shape[1]
         elif point[1] < 0:
             point[0] = 0
         return point
@@ -89,7 +89,15 @@ class RRTAlgoritm():
         for i in range(self.rho):
             testPoint[0] = locationStart.locationX + i * u_hat[0]
             testPoint[1] = locationStart.locationY + i * u_hat[1]
-            if self.grid[round(testPoint[1]), round(testPoint[0])] == 1:
+            if testPoint[0] >= self.grid.shape[0]:
+                testPoint[0] = self.grid.shape[0] - 1
+            elif testPoint[0] < 0:
+                testPoint[0] = 0
+            if testPoint[1] >= self.grid.shape[1]:
+                testPoint[1]= self.grid.shape[1] - 1
+            elif testPoint[1] < 0:
+                testPoint[1] = 0
+            if self.grid[math.floor(testPoint[1]), math.floor(testPoint[0])] == 1:
                 return True
         return False
 
@@ -125,7 +133,7 @@ class RRTAlgoritm():
     def goalFound(self, point):
         """check if the goal has been reached within step size
         """
-        if self.distance(self.goal, point) < stepSize:
+        if self.distance(self.goal, point) < self.stepSize:
             return True
         else:
             return False
@@ -141,7 +149,6 @@ class RRTAlgoritm():
     def retraceRRTPath(self, goal):
         """trace the path from goal to start
         """
-        print(f"goal - > {goal}")
         if goal.locationX == self.randomTree.locationX:
             return
         self.numWaypoints += 1
@@ -154,35 +161,27 @@ class RRTAlgoritm():
         pass
 
 
-if __name__ == "__main__":
-    # grid = np.load('map_space.npy')
-    # start = np.array([50.0, 50.0])
-    # goal = np.array([500, 220])
-    dim = (500, 500)
-    num_obs = 7
-    num_samples = 3
-    obs_type = "rectangle"
+def create_dataset(dim, num_samples, num_obs, obs_type="rectangle", config=None):
     generator = DataGeneration(dim, num_obs, obs_type)
-    generator.generate(num_samples)
     flagFound = False
-    i = 0
-    breakpoint()
-    while i < num_samples:
-        print(f"ITRS: {i}")
-        start = generator.dataset['starts'][i]
+    # try:
+    generator.generate(num_samples)
+    # except:
+    #     print("Error in creating the dataset")
+    assert(len(generator.dataset['maps']) == num_samples)
+    for i in range(num_samples):
+        start = generator.dataset['starts'][i] 
         goal = generator.dataset['goals'][i]
+        # print(f"i -> {i}")
+        # print(f"maps -> {generator.dataset['maps'][i]}")
         grid = generator.dataset['maps'][i]
-        numIterations = 1000
-        stepSize = 15
-        goalRegion = plt.Circle((goal[0], goal[1]), stepSize, color='b', fill=False)
-        fig = plt.figure("RRT Algorithm")
-        plt.imshow(grid, cmap='binary')
-        plt.plot(start[0], start[1], 'ro')
-        plt.plot(goal[0], goal[1], 'bo')
-        ax = fig.gca()
-        ax.add_patch(goalRegion)
-        rrt = RRTAlgoritm(start, goal, numIterations, grid, stepSize)
+        maxIteration = 1000
+        stepSize = 10
+        rrt = RRTAlgoritm(start, goal, maxIteration, grid, stepSize)
+        load(grid, start[0], goal[0])
+        # breakpoint()
         for i in range(rrt.iterations):
+            print(i)
             rrt.resetNearestValue()
             point = rrt.sampleAPoint()
             rrt.findNearest(rrt.randomTree, point)
@@ -190,28 +189,144 @@ if __name__ == "__main__":
             bool = rrt.isInObstacle(rrt.nearestNode, new)
             if (bool == False):
                 rrt.addChild(new[0], new[1])
-                plt.pause(0.001)
-                plt.plot([rrt.nearestNode.locationX, new[0]], [rrt.nearestNode.locationY, new[1]], 'go', linestyle='--')
-                # breakpoint()
                 if (rrt.goalFound(new)):
                     rrt.addChild(goal[0], goal[1])
                     flagFound = True
-                    i += 1
-                    print('Goal found!')
+                    print("found goal!!")
                     break
-        if flagFound == False:
-            continue
-        else:
-            try: 
-                rrt.retraceRRTPath(rrt.goal)
-                rrt.Waypoints.insert(0, start)
-                # print(f"Number of waypoints -> {rrt.numWaypoints}")
-                # print(f"path -> {rrt.Waypoints}")
-                for i in range(rrt.numWaypoints- 1):
-                    plt.plot([rrt.Waypoints[i][0], rrt.Waypoints[i+1][0]], [rrt.Waypoints[i][1], rrt.Waypoints[i+1][1]], 'ro', linestyle='--')
-                    plt.pause(0.01)
-            except:
-                print("There is no possible path") 
+                else:
+                    print("couldn't find goal")
+                
+
+
+        if flagFound:
+            rrt.retraceRRTPath(rrt.goal)
+            rrt.Waypoints.insert(0, start)
+            generator.dataset['paths'].append(rrt.Waypoints)
             flagFound = False
+        else:
+            continue
+
+
+        # if flagFound == False:
+        #     continue
+        # else:
+        #     try: 
+        #         rrt.retraceRRTPath(rrt.goal)
+        #         rrt.Waypoints.insert(0, start)
+        #         print(rrt.Waypoints)
+        #         generator.dataset['paths'].append(rrt.Waypoints)
+        #         print()
+        #     except:
+        #         breakpoint()
+        #         print("There is no possible path") 
+        #     flagFound = False
+
+    
+    return format(generator.dataset)
+
+
+def format(dataset):
+        max_length = 0
+        encode_size = 28
+        N = len(dataset['paths'])
+        # encoder = Encoder(dataset['maps']*dataset['maps'], encode_size)
+        path_length = np.zeros(len(dataset['paths']), dtype=np.int32)
+        for i, path in enumerate(dataset['paths']):
+            path_length[i] = np.array(path).shape[0]
+            if np.array(path).shape[0] > max_length:
+                max_length = np.array(path).shape[0]
+        paths = np.zeros((N, max_length, 2))
+
+
+        for i in range(N):
+            for j in range(path_length[i]):
+                paths[i][j] = dataset['paths'][i][j]
+        train = []
+        targets = []
+        for i in range(0, N):
+            for j in range(path_length[i] - 1):
+                data = np.zeros(32)
+                data[28] = paths[i][j][0]
+                data[29] = paths[i][j][1]
+                data[30] = paths[i][path_length[i] - 1][0]
+                data[31] = paths[i][path_length[i] - 1][1]
+                targets.append(paths[i][j + 1])
+
+            
+
+
+        
         breakpoint()
-        plt.close()
+    
+
+
+if __name__ == "__main__":
+    dim = (500, 500)
+    num_obs = 7
+    num_samples = 5
+    obs_type = "rectangle"
+    dataset = create_dataset(dim, num_samples, num_obs, obs_type)
+    breakpoint()
+    
+
+    # dim = (500, 500)
+    # num_obs = 7
+    # num_samples = 4
+    # obs_type = "rectangle"
+    # generator = DataGeneration(dim, num_obs, obs_type)
+    # generator.generate(num_samples)
+    # flagFound = False
+    # n = 0
+    # # breakpoint()
+    # while n < num_samples:
+    #     start = generator.dataset['starts'][n]
+    #     goal = generator.dataset['goals'][n]
+    #     grid = generator.dataset['maps'][n]
+    #     # print(f"grid -> {grid}")
+    #     # breakpoint()
+    #     numIterations = 1000
+    #     stepSize = 10
+    #     # goalRegion = plt.Circle((goal[0], goal[1]), stepSize, color='b', fill=False)
+    #     # fig = plt.figure("RRT Algorithm")
+    #     # plt.imshow(grid, cmap='binary')
+    #     # plt.plot(start[0], start[1], 'ro')
+    #     # plt.plot(goal[0], goal[1], 'bo')
+    #     # ax = fig.gca()
+    #     # ax.add_patch(goalRegion)
+    #     rrt = RRTAlgoritm(start, goal, numIterations, grid, stepSize)
+    #     for i in range(rrt.iterations):
+    #         rrt.resetNearestValue()
+    #         point = rrt.sampleAPoint()
+    #         rrt.findNearest(rrt.randomTree, point)
+    #         new = rrt.steerToPoint(rrt.nearestNode, point)
+    #         bool = rrt.isInObstacle(rrt.nearestNode, new)
+    #         if (bool == False):
+    #             rrt.addChild(new[0], new[1])
+    #             # plt.plot([rrt.nearestNode.locationX, new[0]], [rrt.nearestNode.locationY, new[1]], 'go', linestyle='--')
+    #             if (rrt.goalFound(new)):
+    #                 print(f"itr +1 {n}")
+    #                 rrt.addChild(goal[0], goal[1])
+    #                 flagFound = True
+    #                 n += 1
+    #                 print('Goal found!')
+    #                 break
+    #     if flagFound == False:
+    #         continue
+    #     else:
+    #         try: 
+    #             rrt.retraceRRTPath(rrt.goal)
+    #             rrt.Waypoints.insert(0, start)
+    #             # print(f"Number of waypoints -> {rrt.numWaypoints}")
+    #             # print(f"path -> {rrt.Waypoints}")
+    #             for i in range(rrt.numWaypoints - 1):
+    #                 pass
+    #                 # plt.plot([rrt.Waypoints[i][0], rrt.Waypoints[i+1][0]], [rrt.Waypoints[i][1], rrt.Waypoints[i+1][1]], 'ro', linestyle='--')
+    #                 # plt.plot([rrt.Waypoints[-1][0], goal[0]], [rrt.Waypoints[-1][1], goal[1]], 'ro', linestyle='--')
+    #                 # plt.pause(0.01)
+    #         except:
+    #             print("There is no possible path") 
+    #         flagFound = False
+    #     breakpoint()
+    #     # plt.close()
+    #     # plt.close()

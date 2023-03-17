@@ -20,18 +20,17 @@ def load(map, start, goal):
 class DataGeneration(object):
     
     def __init__(self, dim, num_obs=1, obs_type = None) -> None:
-        self.dataset = {'maps': [], 'starts': [], 'goals': []}
+        self.dataset = {'maps': [], 'starts': [], 'goals': [], 'paths': []}
         self.dim = dim
         self.num_obs = num_obs
         self.obs_type = obs_type
 
     def generate(self, num):
-        # breakpoint()
-        
-        # print(f"start -> {(self.start[0], self.start[1])}")
-        # print(f"goal -> {(self.goal[0], self.goal[1])}")
         itr = 0
-        for _ in range(num):
+        _samples = 0
+        # for _ in range(num):
+        while (_samples < num): 
+            self.FlagFailed = False
             self.map = np.zeros((self.dim[0], self.dim[1]))
             while (True):
                 self.start = np.array([random.randint(1, self.dim[0] - 1), random.randint(1, self.dim[1] - 1 )])
@@ -48,10 +47,12 @@ class DataGeneration(object):
                     height = random.randint(1, size_0) 
                     width = random.randint(1, size_1)
                     if self.check_geometry(center, height, width) and self._check_goal_start(center, height, width, self.start, self.goal):
-                        self.rectangle(center, height, width)                        
-                        itr += 1
+                        if (self.rectangle(center, height, width)):
+                            itr += 1
+                            # print("itr - >", itr)
                     else:
                         print(f"failed, {center}, {height}, {width}")
+                        # self.FlagFailed = True
                     
             elif self.obs_type == "circle":
                 for _ in range(self.num_obs):
@@ -59,10 +60,14 @@ class DataGeneration(object):
             elif self.obs_type == "all" or self.obs_type == None:
                 for _ in range(self.num_obs):
                     pass
+            if self.FlagFailed == False:
+                self.dataset['maps'].append(self.map)
+                self.dataset['starts'].append(self.start)
+                self.dataset['goals'].append(self.goal)
+                itr = 0
+                _samples += 1
 
-            self.dataset['maps'].append(self.map)
-            self.dataset['starts'].append(self.start)
-            self.dataset['goals'].append(self.goal)
+        # self.dataset)
 
     def _check_goal_start(self, center, height, length, start, goal):
         for i in range(0, height):
@@ -97,18 +102,23 @@ class DataGeneration(object):
             for i in range(0, height):
                 for j in range(0, length):
                     self.map[center[0] - (height // 2) + i][center[1] - (length // 2) + j] = 1
+            return True
         except:
             print("FAILED TO RECTANGLE")
+            return False
 
     def save(path):
         pass
 
 
+
 if __name__ == "__main__":
-    dim = (256, 256)
-    num_obs = 5
-    num_samples = 1
-    obs_type = "rectangle"
-    generator = DataGeneration(dim, num_obs, obs_type)
-    generator.generate(num_samples)
+    pass
+    # dim = (256, 256)
+    # num_obs = 5
+    # num_samples = 1
+    # obs_type = "rectangle"
+    # generator = DataGeneration(dim, num_obs, obs_type)
+    # generator.generate(num_samples)
+    # breakpoint()
 
