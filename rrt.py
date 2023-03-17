@@ -161,11 +161,12 @@ class RRTAlgoritm():
         pass
 
 
-def create_dataset(dim, num_samples, num_obs, obs_type="rectangle", config=None):
+def create_dataset(dim, num_samples, num_obs, obs_type="rectangle", config=None, plot=False):
     generator = DataGeneration(dim, num_obs, obs_type)
     flagFound = False
     # try:
     generator.generate(num_samples)
+    plot = True
     # except:
     #     print("Error in creating the dataset")
     assert(len(generator.dataset['maps']) == num_samples)
@@ -176,10 +177,19 @@ def create_dataset(dim, num_samples, num_obs, obs_type="rectangle", config=None)
         # print(f"maps -> {generator.dataset['maps'][i]}")
         grid = generator.dataset['maps'][i]
         maxIteration = 1000
-        stepSize = 10
+        stepSize = 25
         rrt = RRTAlgoritm(start, goal, maxIteration, grid, stepSize)
-        load(grid, start[0], goal[0])
-        # breakpoint()
+        if plot:
+            goalRegion = plt.Circle((goal[0], goal[1]), stepSize, color='b', fill=False)
+            fig = plt.figure("RRT Algorithm")
+            plt.imshow(grid, cmap='binary')
+            plt.plot(start[0], start[1], 'ro')
+            plt.plot(goal[0], goal[1], 'bo')
+            # plt.imshow(grid)
+            ax = fig.gca()
+            ax.add_patch(goalRegion)
+            # breakpoint()
+            # plt.show()
         for i in range(rrt.iterations):
             print(i)
             rrt.resetNearestValue()
@@ -189,14 +199,14 @@ def create_dataset(dim, num_samples, num_obs, obs_type="rectangle", config=None)
             bool = rrt.isInObstacle(rrt.nearestNode, new)
             if (bool == False):
                 rrt.addChild(new[0], new[1])
+                if plot:
+                    plt.plot([rrt.nearestNode.locationX, new[0]], [rrt.nearestNode.locationY, new[1]], 'go', linestyle='--')
+                    plt.pause(0.0001)
                 if (rrt.goalFound(new)):
                     rrt.addChild(goal[0], goal[1])
                     flagFound = True
                     print("found goal!!")
                     break
-                else:
-                    print("couldn't find goal")
-                
 
 
         if flagFound:
@@ -208,20 +218,11 @@ def create_dataset(dim, num_samples, num_obs, obs_type="rectangle", config=None)
             continue
 
 
-        # if flagFound == False:
-        #     continue
-        # else:
-        #     try: 
-        #         rrt.retraceRRTPath(rrt.goal)
-        #         rrt.Waypoints.insert(0, start)
-        #         print(rrt.Waypoints)
-        #         generator.dataset['paths'].append(rrt.Waypoints)
-        #         print()
-        #     except:
-        #         breakpoint()
-        #         print("There is no possible path") 
-        #     flagFound = False
-
+        if plot:
+            for i in range(rrt.numWaypoints- 1):
+                plt.plot([rrt.Waypoints[i][0], rrt.Waypoints[i+1][0]], [rrt.Waypoints[i][1], rrt.Waypoints[i+1][1]], 'ro', linestyle='--')
+                plt.pause(0.10)
+            plt.close()
     
     return format(generator.dataset)
 
