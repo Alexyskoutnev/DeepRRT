@@ -4,7 +4,7 @@ import random
 import math
 
 from dataset import DataGeneration
-# from model import Encoder
+from model import Encoder
 
 from matplotlib.pyplot import rcParams
 np.set_printoptions(precision=3, suppress=True)
@@ -191,7 +191,6 @@ def create_dataset(dim, num_samples, num_obs, obs_type="rectangle", config=None,
             # breakpoint()
             # plt.show()
         for i in range(rrt.iterations):
-            print(i)
             rrt.resetNearestValue()
             point = rrt.sampleAPoint()
             rrt.findNearest(rrt.randomTree, point)
@@ -207,7 +206,6 @@ def create_dataset(dim, num_samples, num_obs, obs_type="rectangle", config=None,
                     flagFound = True
                     print("found goal!!")
                     break
-
 
         if flagFound:
             rrt.retraceRRTPath(rrt.goal)
@@ -231,7 +229,7 @@ def format(dataset):
         max_length = 0
         encode_size = 28
         N = len(dataset['paths'])
-        # encoder = Encoder(dataset['maps']*dataset['maps'], encode_size)
+        encoder = Encoder(dataset['maps'][0].shape[0]*dataset['maps'][0].shape[0], encode_size)
         path_length = np.zeros(len(dataset['paths']), dtype=np.int32)
         for i, path in enumerate(dataset['paths']):
             path_length[i] = np.array(path).shape[0]
@@ -243,10 +241,14 @@ def format(dataset):
         for i in range(N):
             for j in range(path_length[i]):
                 paths[i][j] = dataset['paths'][i][j]
+
         train = []
         targets = []
+
         for i in range(0, N):
             for j in range(path_length[i] - 1):
+                breakpoint()
+                encoded_data = encoder(dataset['maps'][i])
                 data = np.zeros(32)
                 data[28] = paths[i][j][0]
                 data[29] = paths[i][j][1]
@@ -265,7 +267,7 @@ def format(dataset):
 if __name__ == "__main__":
     dim = (500, 500)
     num_obs = 7
-    num_samples = 5
+    num_samples = 1
     obs_type = "rectangle"
     dataset = create_dataset(dim, num_samples, num_obs, obs_type)
     breakpoint()

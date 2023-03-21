@@ -31,7 +31,7 @@ class DataGeneration(object):
         # for _ in range(num):
         while (_samples < num): 
             self.FlagFailed = False
-            self.map = np.zeros((self.dim[0], self.dim[1]))
+            self.map = np.zeros((self.dim[0], self.dim[1]), dtype=np.float64)
             while (True):
                 self.start = np.array([random.randint(1, self.dim[0] - 1), random.randint(1, self.dim[1] - 1 )])
                 self.goal = np.array([random.randint(1, self.dim[0] - 1), random.randint(1, self.dim[1] - 1 )])
